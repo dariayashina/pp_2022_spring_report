@@ -1,0 +1,376 @@
+\documentclass{report}
+
+\usepackage[warn]{mathtext}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage{tempora}
+\usepackage[12pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{listings}
+\lstset{language=C++,
+        basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{red}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Линейная фильтрация изображений (блочное разбиение). Ядро Гаусса 3x3.»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнила:} \\ студентка группы 381906-2 \\ Яшина Д.С. \\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2022 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+\par Под фильтрацией изображений понимают операцию, имеющую своим результатом изображение того же размера, полученное из исходного по некоторым правилам (фильтрам). Обычно цвет каждого пикселя результирующего изображения обусловлена цветами пикселей, расположенных в некоторой его окрестности в исходном изображении. Фильтрация изображений необходима при реализации фундаментальных операций компьютерного зрения, распознавания образов и обработки изображений. 
+\par Линейные фильтры представляют собой семейство фильтров, имеющих очень простое математическое описание. К таким фильтрам относится фильтр Гаусса, который применяется при шумоподавлении и для размытия изображений.
+\par В данной лабораторной работе необходимо реализовать линейную фильтрацию изображения фильтром Гаусса с ядром 3х3 (блочное разбиение). Стоит отметить, что данный фильтр применяется к каждому пикселю в отдельности независимо от остальных, следовательно предоставляется возможным путем распараллеливания вычислений между процессами ускорить его работу.
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\par В данном лабораторной работе требуется реализовать последовательный и несколько параллельных алгоритмов  линейной фильтрации изображений (блочное разбиение) с ядром Гаусса 3х3, провести вычислительный эксперименты для сравнения времени работы алгоритмов, используя при этом фрэймворк для разработки автоматических тестов Google Test, сделать выводы об эффективности реализованных алгоритмов.
+
+\par Параллельные алгоритмы должны быть реализованы при помощи технологий OpenMP, TBB.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+
+\par Алгоритм линейной фильтрации изображения с помощью ядра Гаусса 3х3 состоит из следующих шагов:
+\begin{enumerate}
+\item Для каждого пикселя исходного изображения рассматривается область соседних пикселей. Размер этой области зависит от размера ядра Гаусса, в нашем случае эта область - 3х3.
+\item  Значение каждого пикселя из этой области умножается на значение из соответствующей ячейки в ядре Гаусса. Полученный результат от произведения прибавляется к заранее созданной переменной. Таким образом  мы обходим все значения из области.
+\item По координатам пикселя исходного изображения (для которого рассматривалась область соседних пикселей ) для нового изображения кладётся значение специально созданной переменной.
+ 
+\end{enumerate}
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+\par Существует несколько подходов к проходу по изображению:
+\begin{enumerate}
+\item горизонтальное разбиение ( идем по строчкам )
+\item вертикальное разбиение ( идем по столбцам )
+\item блочное разбиение
+\end{enumerate}
+\par В данной лабораторной работе представлено блочное разбиение. Данный подход заключается в том, что мы идем не по строкам и не по столбцам, а по блокам, т.е. исходное изображение необходимо разбить на равные квадратики. Каждый такой квадратик обрабатываем будто это отдельная картинка при помощи фильтра, а после из этих картинок обратно собираем изображение.
+\par В OpenMP и TBB версиях распределение данных осуществляется автоматически. При выходе из параллельного региона кода во всех параллельных версиях используется автоматическая синхронизация.
+
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+\parПрограмма состоит из заголовочного файла linear\_block\_filtration.h и двух файлов исходного кода  linear\_block\_filtration.cpp и main.cpp. 
+
+\par Функция, которая формирует ядро Гаусса.
+\begin{lstlisting}
+double* create_random_kernel(int size_n, double sigma)
+\end{lstlisting}
+\par Функция блочного разбиения:
+\begin{lstlisting}
+void block_work(Mat& image, double* matrix, int st_x, int fn_x, int st_y, int fn_y)
+\end{lstlisting}
+\par Функция для последовательного алгоритма линейной фильтрации изображения:
+\begin{lstlisting}
+void getSequentialOperations(Mat& image, double* matrix);
+\end{lstlisting}
+\par Функция для параллельного алгоритма линейной фильтрации изображения (OpenMP версия):
+\begin{lstlisting}
+void getParallelOperationsOMP(Mat& image, double* matrix)
+\end{lstlisting}
+\par Функция для параллельного алгоритма линейной фильтрации изображения(TBB версия):
+\begin{lstlisting}
+void getParallelOperationsTBB(Mat& image, double* matrix)
+\end{lstlisting}
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности работы данной программы я разработала тесты с помощью фрэймфорка Google Test. Тесты проверяют корректность работы алгоритмов, написанных в программе. При помощи последовательного алгоритма и рассматриваемого параллельного алгоритма подсчитывается время работы обоих алгоритмов, находится ускорение и затем результаты вычисления  последовательным и параллельным способом сравниваются между собой.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности работы параллельного алгоритма проводились на ПК со следующими характеристиками:
+\begin{itemize}
+\item Процессор: Intel(R) Core(TM) i5-9400F, количество ядер: 6;
+\item Оперативная память: 16 ГБ;
+\item Операционная система: Windows 10;
+\end{itemize}
+\par Количество используемых потоков определялось автоматически.
+\par Проведем эксперимент на следующих изображениях:
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{p{3cm} p{3cm} p{3cm} p{3cm} p{3cm}}
+
+Изображение    & ОМР        & ТBB         & Последовательно   \\
+440x457        & 0.0148561  & 0.0151062  & 0.015758 \\
+810x1080      & 0.0239825  & 0.0259694  & 0.0459342  \\
+1600x1067      & 0.454463  & 0.441941  & 0.0914935
+\end{tabular}
+\end{table}
+
+\newpage
+
+% Выводы из результатов экспериментов
+\section*{Выводы из результатов экспериментов}
+\addcontentsline{toc}{section}{Выводы из результатов экспериментов}
+\parПроанализировав полученные результаты, можно заметить, что все приведенные выше реализации схожи по времени работы, а небольшие различия во времени являются лишь погрешностью.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В результате выполнения   данной лабораторной работы были разработаны последовательный и параллельныe алгоритмы линейной фильтрации изображений (блочное разбиение) ядром Гаусса 3х3. Параллельное умножение реализовано при помощи технологий OpenMP и TBB. Проведенные тесты показали корректность реализованных алгоритмов, а проведенные эксперименты доказали, что параллельная версия алгоритма работает быстрее.
+
+\newpage
+
+% Литература
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+\begin{enumerate}
+\item Гергель В. П. Теория и практика параллельных вычислений. – 2007.
+\item  Гергель В. П., Стронгин Р. Г. Основы параллельных вычислений для много-
+процессорных вычислительных систем. – 2003.
+\end{enumerate} 
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+\begin{lstlisting}
+//yashina_d_linear_block_filtration.h
+
+
+#include <list>
+#include <opencv2/imgcodecs.hpp>
+#include <vector>
+using namespace cv;
+template <class T>
+T clamp(T value, T max, T min) {
+  if (value > max) return max;
+  if (value < min) return min;
+  return value;
+}
+template <class K>
+K minimum(const K& a, const K& b) {
+  if (a < b)
+    return a;
+  else
+    return b;
+}
+double* create_random_kernel(int size_n, double sigma);
+
+void getSequentialOperations(Mat& image, double* matrix);
+void getParallelOperations(Mat& image, double* matrix);
+
+
+
+//yashina_d_linear_block_filtration.cpp
+
+#include "yashina_d_linear_block_filtration.h"
+
+#include <algorithm>
+#include <iostream>
+#include <list>
+#include <random>
+#include <vector>
+double* create_random_kernel(int size_n, double sigma) {
+  double* v = new double[size_n * size_n];
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  double norm = 0;
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      int idx = (i + 1) * 3 + (j + 1);
+      v[idx] = std::exp(-(i * i + j * j) / sigma * sigma);
+      norm += v[idx];
+    }
+  }
+  for (int i = 0; i < 9; i++) {
+    v[i] /= norm;
+  }
+  return v;
+}
+
+double calculatedNewPixelColor(double* matrix, Mat& image, const int x,
+                               const int y, int num) {
+  double color = 0;
+  for (int i = -1; i <= 1; i++) {
+    for (int j = -1; j <= 1; j++) {
+      int idx = (i + 1) * 3 + j + 1;
+      double imgColor = image.at<Vec3b>(clamp(x + j, image.rows - 1, 0),
+                                        clamp(y + i, image.cols - 1, 0))[num];
+      color += (imgColor)*matrix[idx];
+    }
+  }
+  return color;
+}
+void block_work(Mat& image, double* matrix, int st_x, int fn_x, int st_y,
+                int fn_y) {
+  for (int y = st_y; y < fn_y; y++) {
+    for (int x = st_x; x < fn_x; x++) {
+      image.at<Vec3b>(y, x)[0] =
+          calculatedNewPixelColor(matrix, image, y, x, 0);
+      image.at<Vec3b>(y, x)[1] =
+          calculatedNewPixelColor(matrix, image, y, x, 1);
+      image.at<Vec3b>(y, x)[2] =
+          calculatedNewPixelColor(matrix, image, y, x, 2);
+    }
+  }
+}
+void getSequentialOperations(Mat& image, double* matrix) {
+  int block_weight = image.cols / 4;
+  int block_height = image.rows / 4;
+  for (int y = 0; y < image.rows; y += block_height) {
+    for (int x = 0; x < image.cols; x += block_weight) {
+      block_work(image, matrix, x, minimum(x + block_weight, image.cols), y,
+                 minimum(y + block_height, image.rows));
+    }
+  }
+}
+void getParallelOperationsOMP(Mat& image, double* matrix) {
+  int block_weight = image.cols / 4;
+  int block_height = image.rows / 4;
+#pragma omp parallel
+  {
+#pragma omp for
+    for (int y = 0; y < image.rows; y += block_height) {
+      for (int x = 0; x < image.cols; x += block_weight) {
+        block_work(image, matrix, x, minimum(x + block_weight, image.cols), y,
+                   minimum(y + block_height, image.rows));
+      }
+    }
+  }
+}
+
+void getParallelOperationsTBB(Mat& image, double* matrix) {
+  int block_weight = image.cols / 4;
+  int block_height = image.rows / 4;
+  tbb::parallel_for(
+      tbb::blocked_range<int>(0, image.rows, block_height),
+      [&image, &matrix, &block_weight](const tbb::blocked_range<int>& r) {
+        int begin = r.begin();
+        int end = r.end();
+        for (int x = 0; x < image.cols; x += block_weight) {
+          block_work(image, matrix, x, minimum(x + block_weight, image.cols),
+                     begin, end);
+        }
+      });
+}
+
+//main.cpp
+
+#include <iostream>
+
+#include "yashina_d_linear_block_filtration.h"
+using namespace cv;
+using namespace std;
+
+int main(int argc, char* argv[]) {
+  Mat mat = imread("C:/Users/George/Pictures/5200.jpg");  // Create a matrix
+                                                          // with alpha channel
+  if (mat.empty()) {
+    std::cout << "empty";
+  }
+  Mat cop = mat;
+  Mat copcop = mat;
+  double* filter = create_random_kernel(3, 3);
+  // for (int i = 0; i < 9; i++) std::cout << filter[i] << " ";
+  tbb::tick_count start_seq = tbb::tick_count::now();
+  getSequentialOperations(cop, filter);
+  tbb::tick_count end_seq = tbb::tick_count::now();
+  double sequential_runtime = (end_seq - start_seq).seconds();
+  tbb::tick_count start_omp = tbb::tick_count::now();
+  getParallelOperations(copcop, filter);
+  tbb::tick_count end_omp = tbb::tick_count::now();
+  double parallel_omp_runtime = (end_omp - start_omp).seconds();
+  std::cout << "sequential_runtime = " << sequential_runtime << std::endl;
+  std::cout << "parallel_omp_runtime = " << parallel_omp_runtime << std::endl;
+  std::cout << "a: " << sequential_runtime / parallel_omp_runtime;
+  imwrite("C:/Users/George/Pictures/mres.jpg", cop);
+  imwrite("C:/Users/George/Pictures/mparallelres.jpg", copcop);
+}
+
+\end{lstlisting}
+
+\end{document}
+
+\end{document}
